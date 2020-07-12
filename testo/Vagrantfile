@@ -1,0 +1,133 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# For a complete reference, please see the online documentation at
+# https://docs.vagrantup.com.
+
+Vagrant.configure("2") do |config|
+  VM_IMAGE_NAME = "ubuntu/focal64"
+  VM_IMAGE_VERSION = "20200707.0.0"
+
+  (1..2).reverse_each do |node_number|
+    vm_name = "node00#{node_number}"
+
+    config.vm.define vm_name do |node|
+      ##
+      # Vagrant Box base image
+      #
+      # VM image build history ->
+      ##
+      node.vm.box = VM_IMAGE_NAME
+      node.vm.box_version = VM_IMAGE_VERSION
+      node.vm.box_check_update = false
+
+      ##
+      # Network configurations
+      ##
+      node.vm.hostname  = vm_name
+
+      # Access to Edge VM port 80 as localhost:8000
+      # node.vm.network "forwarded_port", guest: 80, host: 8000 if node_number == 1
+
+      # Reach VM as an specific private IP
+      node.vm.network "private_network", ip: "192.168.5.#{10+node_number}", hostsupdater: "skip"
+
+      ##
+      # VirtualBox VM customization
+      ##
+      node.vm.provider "virtualbox" do |vb|
+          vb.gui = false
+          vb.memory = "1516"
+      end
+
+      ##
+      # Provisioning
+      ##
+
+      # Copy all the provision files to /home/[default user]/provision-files
+      # node.vm.provision "file", source: "files", destination: "~/provision-files"
+
+      node.vm.provision "shell", inline: <<~EOS
+        apt-get update
+      EOS
+
+      if node_number == 1
+        # Copy other machines Vagrant generate private keys (hack)
+        Dir.glob(".vagrant/machines/**/virtualbox/private_key").each do | p |
+            name = p.gsub('.vagrant/machines/','').gsub('/','-')
+            node.vm.provision "file", source: "./#{p}", destination: "/home/vagrant/.ssh/#{name}"
+        end
+
+        # Copy Ansible files
+        node.vm.provision "file", source: "ansible/", destination: "/home/vagrant"
+
+        # Provision all the machines using Ansible
+        node.vm.provision "shell", inline: <<~EOS
+          apt-get install -y python3 python3-pip
+        EOS
+
+        node.vm.provision "ansible_local" do |ansible|
+          ansible.install_mode = "pip"
+          ansible.playbook = "/home/vagrant/playbook.yml"
+          ansible.inventory_path = "/home/vagrant/inventory"
+          ansible.config_file = "/home/vagrant/ansible.cfg"
+          ansible.limit = "all" # or only "nodes" group, etc.
+          ansible.become = true
+          ansible.verbose = true
+        end
+      end
+
+      # Add nodes list to /etc/host file
+      # node.vm.provision "shell", inline: <<~EOS
+      # { \
+      #   echo '192.168.7.11 node001.cms-orbits.com node001 orbits edge'; \
+      #   echo '192.168.7.12 node002.cms-orbits.com node002 cms'; \
+      #   echo '192.168.7.13 node003.cms-orbits.com node003 postgres mongo rabbit'; \
+      # } >> /etc/hosts
+      # EOS
+
+      # Apply all the provision scripts.
+      # WARNING: The provision scripts are hardly coupled to the provision-files directory path
+      # provision_scripts = case i
+      # when 1 # Edge / Orbits
+      #     %w(00-install-prerequisites.sh 01-docker-services.sh 05-docker-nginx-edge.sh 08-docker-cms-orbits.sh)
+      # when 2 # CMS
+      #     %w(00-install-prerequisites.sh 01-install-compilers.sh 01-docker-services.sh 03-populate-cms-database.sh 04-cms-compilers.sh 04-docker-cms.sh)
+      # when 3 # Data
+      #     %w(00-install-prerequisites.sh 01-docker-services.sh 02-docker-postgresql.sh 06-docker-rabbitmq.sh 07-docker-mongodb.sh)
+      # else
+      #     []
+      # end
+    end
+  end
+
+  # A single controller (node001) that provisions the other machines in parallel
+  #
+  # config.vm.define 'node001' do |machine|
+  #   machine.vm.network "private_network", ip: "172.17.177.11"
+
+  #   machine.vm.provision :ansible_local do |ansible|
+  #     ansible.playbook       = "example.yml"
+  #     ansible.verbose        = true
+  #     ansible.install        = true
+  #     ansible.limit          = "all" # or only "nodes" group, etc.
+  #     ansible.inventory_path = "inventory"
+  #   end
+  # end
+
+  ###### Lazy copy/paste this is how the inventory file on node001 should look like
+  # node001    ansible_connection=local
+  # node002    ansible_host=192.168.5.11 ansible_ssh_private_key_file=/vagrant/.vagrant/machines/node002/virtualbox/private_key
+  # node003    ansible_host=192.168.5.12 ansible_ssh_private_key_file=/vagrant/.vagrant/machines/node003/virtualbox/private_key
+
+  # [nodes]
+  # node00[1:2]
+
+  ###### Lazy copy/paste 2 this is how the ansible.cfg on node001 should look like
+  # [defaults]
+  # host_key_checking = no
+
+  # [ssh_connection]
+  # ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes
+
+
+end

@@ -1,0 +1,6 @@
+node001    ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+node002    ansible_host=192.168.5.12 ansible_ssh_private_key_file=/home/vagrant/.ssh/node002-virtualbox-private_key
+
+[nodes]
+node00[1:2]
+
