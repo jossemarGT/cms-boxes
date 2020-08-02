@@ -1,0 +1,16 @@
+[Unit]
+Description=%i service with docker-compose
+Requires=docker.service
+After=docker.service
+
+[Service]
+WorkingDirectory=/opt/compose/%i
+Environment=SERVICE_NAME=%i
+Environment=HOST_IP={{ hostvars[inventory_hostname]['ansible_facts']['ansible_all_ipv4_addresses'][1] }}
+
+ExecStartPre=/usr/bin/docker-compose rm -f
+ExecStart=/usr/bin/docker-compose up --abort-on-container-exit
+ExecStop=/usr/bin/docker-compose down --volumes
+
+[Install]
+WantedBy=multi-user.target

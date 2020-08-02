@@ -1,0 +1,6 @@
+---
+# file: site.yml
+  - hosts: all
+  - import_playbook: orbits.yml
+  - import_playbook: cms.yml
+  - import_playbook: databases.yml

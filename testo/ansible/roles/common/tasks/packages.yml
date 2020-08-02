@@ -1,0 +1,15 @@
+---
+# roles/common/tasks/main.yml
+
+- name: Update apt cache.
+  apt: update_cache=yes cache_valid_time=3600
+
+- name: Install docker and systemd depedencies
+  apt:
+    install_recommends: false
+    name: "{{ item }}"
+    state: present
+  loop:
+    - docker.io
+    - docker-compose
+    - systemd

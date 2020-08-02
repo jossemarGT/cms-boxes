@@ -1,0 +1,45 @@
+---
+# roles/common/tasks/main.yml
+
+- name: Add required Ubuntu packages
+  import_tasks: packages.yml
+  when: ansible_facts['os_family']|lower == 'debian'
+
+- name: Add  vagrant box users to docker group
+  user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop:
+    - vagrant # TODO: expose as var
+    - ubuntu
+
+- name: Create application directory hierarchy
+  file:
+    path: /opt/compose
+    state: directory
+    mode: '0754'
+    recurse: yes
+    owner: vagrant # TODO: expose as var
+    group: vagrant # TODO: expose as var
+
+
+- name: Collect only facts returned by facter
+  setup:
+    gather_subset:
+      - '!all'
+      - '!any'
+      - facter
+      - network
+
+- name: Create systemd service template /etc/systemd/system/compose@.service
+  template:
+    src: roles/common/templates/compose@.service.j2
+    dest: /etc/systemd/system/compose@.service
+    owner: root
+    group: root
+    mode: '0755'
+
+
+# "ansible_facts"."ansible_all_ipv4_addresses".[1]
+# ansible_facts.ansible_enp0s8.ipv4.address
