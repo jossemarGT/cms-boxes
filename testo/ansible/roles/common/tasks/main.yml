@@ -23,14 +23,15 @@
     owner: vagrant # TODO: expose as var
     group: vagrant # TODO: expose as var
 
+# TODO: expose network prefix as var (ipv4.address match)
+- name: Set internal_network_device fact
+  set_fact:
+    internal_network_device: "{{ ansible_facts | dict2items | selectattr('value.ipv4', 'defined') | selectattr('value.ipv4.address', 'match', '^192.168.5') | first }}"
+    cacheable: yes
 
-- name: Collect only facts returned by facter
-  setup:
-    gather_subset:
-      - '!all'
-      - '!any'
-      - facter
-      - network
+- name: Check internal network ipv4 fact
+  debug:
+    msg: "HOST_IP={{ internal_network_device.value.ipv4.address }}"
 
 - name: Create systemd service template /etc/systemd/system/compose@.service
   template:
@@ -39,7 +40,3 @@
     owner: root
     group: root
     mode: '0755'
-
-
-# "ansible_facts"."ansible_all_ipv4_addresses".[1]
-# ansible_facts.ansible_enp0s8.ipv4.address

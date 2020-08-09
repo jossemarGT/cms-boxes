@@ -6,7 +6,7 @@ After=docker.service
 [Service]
 WorkingDirectory=/opt/compose/%i
 Environment=SERVICE_NAME=%i
-Environment=HOST_IP={{ hostvars[inventory_hostname]['ansible_facts']['ansible_all_ipv4_addresses'][1] }}
+Environment=HOST_IP={{ internal_network_device.value.ipv4.address }}
 
 ExecStartPre=/usr/bin/docker-compose rm -f
 ExecStart=/usr/bin/docker-compose up --abort-on-container-exit
