@@ -1,4 +1,126 @@
 ---
-  - hosts: all
-    roles:
-      - common
+# playbook.yml
+#
+# WARNING: basically I'm just hacking around, I have spent enough time grasping
+# the concepts lately. So, after all the tasks are dumped here or on tasks/
+# directory I'll refactor them as roles
+
+# Common
+- hosts: all
+  gather_subset:
+    - '!all'
+    - network
+
+  tasks:
+    - name: Update apt cache
+      apt: update_cache=yes cache_valid_time=3600
+
+    - name: Install docker and systemd depedencies
+      apt:
+        install_recommends: false
+        name: "{{ item }}"
+        state: present
+      loop:
+        - docker.io
+        - docker-compose
+        - systemd
+
+    - name: Add  vagrant box users to docker group
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: true
+      loop:
+        - vagrant # TODO: expose as var
+        - ubuntu
+
+    - name: Create application directory hierarchy
+      file:
+        path: /opt/compose
+        state: directory
+        mode: '0754'
+        recurse: yes
+        owner: vagrant # TODO: expose as var
+        group: vagrant # TODO: expose as var
+
+    # TODO: get network prefix from variable
+    - name: Set internal_net_ip_addr fact
+      set_fact:
+        internal_net_ip_addr: "{{ ansible_facts.all_ipv4_addresses|select('match', '192.168.5*')|first }}"
+        cacheable: yes
+
+    - name: Check internal network ipv4 fact
+      debug:
+        msg: "HOST_IP={{ internal_net_ip_addr }}"
+
+    - name: Create systemd service template /etc/systemd/system/compose@.service
+      template:
+        src: roles/common/templates/compose@.service.j2
+        dest: /etc/systemd/system/compose@.service
+        owner: root
+        group: root
+        mode: '0755'
+
+    # TODO: add host aliases on /etc/hosts file
+
+# Provision Database hosts
+- hosts: databases
+  gather_facts: no
+
+  # TODO: move to external variable files
+  # TODO: add a way to override unsecure passwords
+  vars:
+    postgresql_image: postgres:9.5
+    postgresql_admin_pass: notsecure
+    cms_dbname: cmsdb
+    cms_dbuser: cmsuser
+    cms_dbpass: notsecure
+
+  tasks:
+    - name: Pull PostgreSQL docker image
+      docker_image:
+        name: "{{ postgresql_image }}"
+        source: pull
+
+    - name: Create PostgreSQL compose directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: vagrant # TODO: expose as var
+        group: vagrant # TODO: expose as var
+      loop:
+        - /opt/compose/postgresql
+        - /opt/compose/postgresql/scripts
+
+    - name: Generate PostgreSQL initialization scripts
+      template:
+        src: templates/postgresql/init-cms-database.sh.j2
+        dest: /opt/compose/postgresql/scripts/init-cms-database.sh
+        owner: vagrant # TODO: expose as var
+        group: vagrant # TODO: expose as var
+        mode: '0755'
+
+    - name: Generate PostgreSQL compose file
+      template:
+        src: templates/postgresql/postgresql.yml.j2
+        dest: /opt/compose/postgresql/docker-compose.yml
+        owner: vagrant # TODO: expose as var
+        group: vagrant # TODO: expose as var
+        mode: '0755'
+
+    - name: Start PostgreSQL compose
+      service:
+        name: compose@postgresql
+        state: started
+        enabled: yes
+
+
+# Provision all the CMS workers
+- hosts: cms-workers
+  gather_subset:
+    - '!all'
+    - network
+
+  tasks:
+    - debug: msg="BIG TODO"

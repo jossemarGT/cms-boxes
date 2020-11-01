@@ -1,0 +1,11 @@
+version: '3'
+services:
+  postsgresql:
+    image: {{ postgresql_image }}
+    command:  postgres -c 'listen_addresses=*'
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: {{ postgresql_admin_pass }}
+    volumes:
+      - ./scripts:/docker-entrypoint-initdb.d

@@ -6,7 +6,7 @@ After=docker.service
 [Service]
 WorkingDirectory=/opt/compose/%i
 Environment=SERVICE_NAME=%i
-Environment=HOST_IP={{ internal_network_device.value.ipv4.address }}
+Environment=HOST_IP={{ internal_net_ip_addr }}
 
 ExecStartPre=/usr/bin/docker-compose rm -f
 ExecStart=/usr/bin/docker-compose up --abort-on-container-exit
