@@ -63,7 +63,7 @@
 
     # TODO: add host aliases on /etc/hosts file
 
-# Provision Database hosts
+# Provision Database hosts (PostgreSQL)
 - hosts: databases
   gather_facts: no
 
@@ -115,6 +115,100 @@
         state: started
         enabled: yes
 
+# Provision Database hosts (rabbitmq)
+- hosts: databases
+  gather_facts: no
+
+  # TODO: move to external variable files
+  # TODO: add a way to override unsecure passwords
+  vars:
+    rabbitmq_image: rabbitmq:3.8
+    rabbitmq_hostname: orbits-mq
+    rabbitmq_default_user: orbituser
+    rabbitmq_default_pass: notsecure
+
+  tasks:
+    - name: Pull rabbitmq docker image
+      docker_image:
+        name: "{{ rabbitmq_image }}"
+        source: pull
+
+    - name: Create rabbitmq compose directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: vagrant # TODO: expose as var
+        group: vagrant # TODO: expose as var
+      loop:
+        - /opt/compose/rabbitmq
+
+    - name: Generate rabbitmq compose file
+      template:
+        src: templates/rabbitmq/rabbitmq.yml.j2
+        dest: /opt/compose/rabbitmq/docker-compose.yml
+        owner: vagrant # TODO: expose as var
+        group: vagrant # TODO: expose as var
+        mode: '0755'
+
+    - name: Start rabbitmq compose
+      service:
+        name: compose@rabbitmq
+        state: started
+        enabled: yes
+
+# Provision Database hosts (mongodb)
+- hosts: databases
+  gather_facts: no
+
+  # TODO: move to external variable files
+  # TODO: add a way to override unsecure passwords
+  vars:
+    mongodb_image: mongo:4.0
+    mongodb_root_username: root
+    mongodb_root_password: notsecure
+    orbits_dbname: cmsdb
+    orbits_dbuser: cmsuser
+    orbits_dbpass: notsecure
+
+  tasks:
+    - name: Pull mongodb docker image
+      docker_image:
+        name: "{{ mongodb_image }}"
+        source: pull
+
+    - name: Create mongodb compose directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: vagrant # TODO: expose as var
+        group: vagrant # TODO: expose as var
+      loop:
+        - /opt/compose/mongodb
+        - /opt/compose/mongodb/scripts
+
+    - name: Generate mongodb initialization scripts
+      template:
+        src: templates/mongodb/init-orbits.js.j2
+        dest: /opt/compose/mongodb/scripts/init-orbits.js
+        owner: vagrant # TODO: expose as var
+        group: vagrant # TODO: expose as var
+        mode: '0755'
+
+    - name: Generate mongodb compose file
+      template:
+        src: templates/mongodb/mongodb.yml.j2
+        dest: /opt/compose/mongodb/docker-compose.yml
+        owner: vagrant # TODO: expose as var
+        group: vagrant # TODO: expose as var
+        mode: '0755'
+
+    - name: Start mongodb compose
+      service:
+        name: compose@mongodb
+        state: started
+        enabled: yes
 
 # Provision all the CMS workers
 - hosts: cms-workers
@@ -123,4 +217,24 @@
     - network
 
   tasks:
-    - debug: msg="BIG TODO"
+    - name: Update apt cache
+      apt: update_cache=yes cache_valid_time=3600
+
+    - name: Install C compilers
+      apt:
+        install_recommends: false
+        name: "{{ item }}"
+        state: present
+      loop:
+        - gcc
+        - python
+        - python3
+        - openjdk-8-jdk
+        - openjdk-11-jdk
+        - php7.2-cli
+        - php7.2-fpm
+        - fpc
+        - haskell-platform
+        - rustc
+        - mono-mcs
+        - ruby

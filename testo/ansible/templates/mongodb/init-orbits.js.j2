@@ -1,0 +1,7 @@
+db.getSiblingDB("{{ orbits_dbname }}").createUser(
+  {
+    user: "{{ orbits_dbuser }}",
+    pwd: "{{ orbits_dbpass }}",
+    roles: [ { role: "readWrite", db: "{{ orbits_dbname }}" } ]
+  }
+)

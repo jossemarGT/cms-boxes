@@ -1,0 +1,10 @@
+version: '3'
+services:
+  rabbitmq:
+    image: {{ rabbitmq_image }}
+    hostname: {{ rabbitmq_hostname }}
+    ports:
+      - "5672:5672"
+    environment:
+      - RABBITMQ_DEFAULT_USER={{ rabbitmq_default_user }}
+      - RABBITMQ_DEFAULT_PASS={{ rabbitmq_default_pass }}

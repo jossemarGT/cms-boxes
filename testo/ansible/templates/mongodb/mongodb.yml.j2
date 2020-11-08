@@ -1,0 +1,11 @@
+version: '3'
+services:
+  mongo:
+    image: {{ mongodb_image }}
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: {{ mongodb_root_username }}
+      MONGO_INITDB_ROOT_PASSWORD: {{ mongodb_root_password }}
+    ports:
+      - '27017:27017'
+    volumes:
+      - ./scripts:/docker-entrypoint-initdb.d
