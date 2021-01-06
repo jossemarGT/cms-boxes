@@ -210,11 +210,65 @@
         state: started
         enabled: yes
 
-# Provision all the CMS workers
-- hosts: cms-workers
+# CMS database migration containers
+- hosts: cms
   gather_subset:
     - '!all'
     - network
+
+  # TODO: move to external variable files
+  # TODO: add a way to override unsecure passwords
+  vars:
+    cms_image: cmsorbits/cms:20180130
+    postgresql_root_username: root
+    postgresql_root_password: notsecure
+    postgresql_host: postgres
+    cms_dbname: cmsdb
+    cms_dbuser: cmsuser
+    cms_dbpass: notsecure
+    cms_admin_username: admin
+    cms_admin_password: notsecure
+
+  tasks:
+    - debug: msg="TODO"
+
+    # see populate-cms-database.sh
+    # how to make them idemptotent?
+    # should wipe and restart handled by the same playbook?
+    # migration and seeding should handled by the same playbook?
+
+    # TODO:
+    # - name: Verify if CMS schema exists
+
+    - name: Pull CMS docker image (pre-migration)
+      docker_image:
+        name: "{{ cms_image }}"
+        source: pull
+
+    - name: Migrate CMS schema
+      shell: >-
+        docker container run --rm --network host
+        -e CMS_DB_PSWD={{ cms_dbpass }}
+        -e CMS_DB_HOST={{ postgresql_host }}
+        {{ cms_image }} cmsInitDB
+      ignore_errors: True # Forcing "idempotence"
+      # TODO: check errors instead of swallow them
+
+    - name: Create CMS admin user
+      shell: >-
+        docker container run --rm --network host
+        -e CMS_DB_PSWD={{ cms_dbpass }}
+        -e CMS_DB_HOST={{ postgresql_host }}
+        {{ cms_image }} cmsAddAdmin {{ cms_admin_username }} --password "{{ cms_admin_password }}"
+      ignore_errors: True # Forcing "idempotence"
+      # TODO: check errors instead of swallow them
+
+    - name: Generate dummy users
+      debug: msg="TODO"
+
+# Provision all the CMS workers
+- hosts: cms-workers
+  gather_facts: no
 
   tasks:
     - name: Update apt cache
