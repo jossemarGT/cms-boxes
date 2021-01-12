@@ -232,13 +232,8 @@
   tasks:
     - debug: msg="TODO"
 
-    # see populate-cms-database.sh
-    # how to make them idemptotent?
-    # should wipe and restart handled by the same playbook?
-    # migration and seeding should handled by the same playbook?
-
-    # TODO:
-    # - name: Verify if CMS schema exists
+    # XXX: should wipe and restart handled by the same playbook?
+    # XXX: migration and seeding should handled by the same playbook?
 
     - name: Pull CMS docker image (pre-migration)
       docker_image:
@@ -251,8 +246,6 @@
         -e CMS_DB_PSWD={{ cms_dbpass }}
         -e CMS_DB_HOST={{ postgresql_host }}
         {{ cms_image }} cmsInitDB
-      ignore_errors: True # Forcing "idempotence"
-      # TODO: check errors instead of swallow them
 
     - name: Create CMS admin user
       shell: >-
@@ -260,11 +253,41 @@
         -e CMS_DB_PSWD={{ cms_dbpass }}
         -e CMS_DB_HOST={{ postgresql_host }}
         {{ cms_image }} cmsAddAdmin {{ cms_admin_username }} --password "{{ cms_admin_password }}"
+      register: res_create_admin
+      failed_when:
+        - res_create_admin.rc > 0
+        - '"username already exists" not in res_create_admin.stdout'
+
+    - name: Create CMS dummy users
+      shell: >-
+        docker container run --rm --network host
+        -e CMS_DB_PSWD={{ cms_dbpass }}
+        -e CMS_DB_HOST={{ postgresql_host }}
+        {{ cms_image }} cmsAddUser -p "{{ item.password }}" aname alastname "{{ item.username }}"
+      ignore_errors: True # Forcing "idempotence"
+      loop:
+        - { username: 'u1', password: 'p1' }
+        - { username: 'u2', password: 'p2' }
+        - { username: 'u3', password: 'p3' }
+      # TODO: check errors instead of swallow them
+      # TODO: expose this hash as variable
+
+    - name: Copy dummy CMS content
+      copy:
+        src: files/cms-dummy-contest/
+        dest: /tmp/cms-dummy-contest
+        force: yes
+
+    - name: Import dummy CMS contest
+      shell: >-
+        docker container run --rm --network host
+        -e CMS_DB_PSWD={{ cms_dbpass }}
+        -e CMS_DB_HOST={{ postgresql_host }}
+        -v /tmp/cms-dummy-contest:/usr/local/src/cms-dummy-contest
+        -w /usr/local/src/
+        {{ cms_image }} cmsImportContest --loader italy_yaml --import-task cms-dummy-contest/
       ignore_errors: True # Forcing "idempotence"
       # TODO: check errors instead of swallow them
-
-    - name: Generate dummy users
-      debug: msg="TODO"
 
 # Provision all the CMS workers
 - hosts: cms-workers
