@@ -211,7 +211,7 @@
         enabled: yes
 
 # CMS database migration containers
-- hosts: cms
+- hosts: COMMENTOUT-cms
   gather_subset:
     - '!all'
     - network
@@ -276,7 +276,6 @@
       copy:
         src: files/cms-dummy-contest/
         dest: /tmp/cms-dummy-contest
-        force: yes
 
     - name: Import dummy CMS contest
       shell: >-
@@ -288,6 +287,50 @@
         {{ cms_image }} cmsImportContest --loader italy_yaml --import-task cms-dummy-contest/
       ignore_errors: True # Forcing "idempotence"
       # TODO: check errors instead of swallow them
+
+
+# CMS Application deployment
+- hosts: cms
+  gather_subset:
+    - '!all'
+    - network
+
+  vars:
+    cms_image: cmsorbits/cms:20180130
+    postgresql_root_username: root
+    postgresql_root_password: notsecure
+    postgresql_host: postgres
+    cms_dbname: cmsdb
+    cms_dbuser: cmsuser
+    cms_dbpass: notsecure
+    cms_admin_username: admin
+    cms_admin_password: notsecure
+
+  tasks:
+    # The deployment of CMS, orbits and the edge server make use of the same taks
+    # TODO: Polish task/deploy yml file, make it more generic and start deploying apps
+    # TODO: Enable to override the template with a custom one
+    - name: "Deploy {{ item.key }} component"
+      include_tasks: roles/compose/tasks/deploy.yml
+      loop: "{{ apps | dict2items }}"
+      vars:
+        cms_container_envs: &cms_global_envs
+          ONE: 1
+        apps:
+          help:
+            envs:
+              <<: *cms_global_envs
+              ANOTHER: ONE
+
+
+  # TODO: DEPLOY CMS
+  # TODO: DEPLOY orbits
+  # TODO: DEPLOY edge
+  # TODO: DEPLOY CMS Workers
+
+  # TODO: deploy spa
+  # TODO: manage secrts
+  # Profit!
 
 # Provision all the CMS workers
 - hosts: cms-workers

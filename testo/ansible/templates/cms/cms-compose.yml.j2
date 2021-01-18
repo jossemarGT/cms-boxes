@@ -1,0 +1,15 @@
+version: '3'
+services:
+  cms:
+    image: {{ container_image|default("cmsorbits/cms:20180130",true) }}
+    command: {{ container_command|default("help") }}
+    network_mode: {{ container_network|default("host",true) }}
+{% if container_privileged|default(false,true) %}
+    privileged: true
+{% endif %}
+{% if container_envs is defined and container_envs|length %}
+    environment:
+{% for key, value in container_envs.items()  %}
+      {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
