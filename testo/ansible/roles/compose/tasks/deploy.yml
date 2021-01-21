@@ -1,27 +1,28 @@
 - debug:
     var: item
 
-- name: "Create {{ item.key }} compose directory"
+- name: "Create {{ item.id }} compose directory"
   file:
-    path: "/opt/compose/{{ item.key }}"
+    path: "/opt/compose/{{ item.id }}"
     state: directory
     mode: '0755'
     owner: vagrant # TODO: expose as var
     group: vagrant # TODO: expose as var
 
-- name: "Generate {{ item.key }} component compose file"
+- name: "Generate {{ item.id }} component compose file"
   template:
     src: templates/cms/cms-compose.yml.j2
-    dest: "/opt/compose/{{ item.key }}/docker-compose.yml"
+    dest: "/opt/compose/{{ item.id }}/docker-compose.yml"
     owner: vagrant # TODO: expose as var
     group: vagrant # TODO: expose as var
     mode: '0755'
   vars:
-    container_envs: "{{ item.value.envs }}"
+    container_command: "{{ item.command|default('help') }}"
+    container_envs: "{{ item.envs }}"
 
-- debug: "msg=Start {{ item.key }} compose"
+- debug: "msg=Start {{ item.id }} compose"
 
-# - name: Start {{ item.key }} compose
-#   service:
-#     name: compose@{{ item.key }}
-#     state: started
+- name: Start {{ item.id }} compose
+  service:
+    name: compose@{{ item.id }}
+    state: started

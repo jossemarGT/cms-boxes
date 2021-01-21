@@ -305,6 +305,10 @@
     cms_dbpass: notsecure
     cms_admin_username: admin
     cms_admin_password: notsecure
+    cms_container_envs: &cms_global_envs
+      CMS_DB_PSWD: "{{ cms_dbpass }}"
+      CMS_DB_HOST: "{{ postgresql_host }}"
+
 
   tasks:
     # The deployment of CMS, orbits and the edge server make use of the same taks
@@ -312,18 +316,49 @@
     # TODO: Enable to override the template with a custom one
     - name: "Deploy {{ item.key }} component"
       include_tasks: roles/compose/tasks/deploy.yml
-      loop: "{{ apps | dict2items }}"
+      loop: "{{ apps }}"
       vars:
-        cms_container_envs: &cms_global_envs
-          ONE: 1
+        # template_path: ...
         apps:
-          help:
+          - id: help
             envs:
               <<: *cms_global_envs
-              ANOTHER: ONE
+          - id: cmsAdminWebServer
+            command: cmsAdminWebServer 0 -c ALL
+            envs:
+              <<: *cms_global_envs
+          - id: cmsLogService
+            command: cmsLogService 0 -c ALL
+            envs:
+              <<: *cms_global_envs
+          - id: cmsChecker
+            command: cmsChecker 0 -c ALL
+            envs:
+              <<: *cms_global_envs
+          - id: cmsContestWebServer
+            command: cmsContestWebServer 0 -c ALL
+            envs:
+              <<: *cms_global_envs
+          - id: cmsEvaluationService
+            command: cmsEvaluationService 0 -c ALL
+            envs:
+              <<: *cms_global_envs
+          - id: cmsScoringService
+            command: cmsScoringService 0 -c ALL
+            envs:
+              <<: *cms_global_envs
+          - id: cmsResourceService
+            command: cmsResourceService 0
+            envs:
+              <<: *cms_global_envs
+          - id: cmsProxyService
+            command: cmsProxyService 0
+            envs:
+              <<: *cms_global_envs
+          - id: cmsRankingWebServe
+            command: cmsRankingWebServer
+            envs: {}
 
-
-  # TODO: DEPLOY CMS
   # TODO: DEPLOY orbits
   # TODO: DEPLOY edge
   # TODO: DEPLOY CMS Workers

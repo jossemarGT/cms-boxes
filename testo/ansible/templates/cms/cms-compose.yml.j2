@@ -1,6 +1,6 @@
 version: '3'
 services:
-  cms:
+  cms: # TODO: Set service and container name from image
     image: {{ container_image|default("cmsorbits/cms:20180130",true) }}
     command: {{ container_command|default("help") }}
     network_mode: {{ container_network|default("host",true) }}
